@@ -1,74 +1,184 @@
+from pathlib import Path
+
 import pandas as pd
 
 
-df = pd.read_csv("data/raw/worldbank_indicators.csv")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+DATA_FILE = (
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "worldbank_indicators.csv"
+)
 
 
 def validate_data(dataframe):
+
     errors = []
 
-    # 1. Vérifier le nombre de pays
-    expected_countries = 4
-    actual_countries = dataframe["country"].nunique()
+    # --------------------------------------------------
+    # Countries
+    # --------------------------------------------------
 
-    if actual_countries != expected_countries:
+    expected_country_codes = {
+        "TGO",
+        "GHA",
+        "BEN",
+        "CIV"
+    }
+
+    actual_country_codes = set(
+        dataframe["country_code"].unique()
+    )
+
+    if actual_country_codes != expected_country_codes:
+
         errors.append(
-            f"Expected {expected_countries} countries, found {actual_countries}"
+            "Unexpected country coverage: "
+            f"{actual_country_codes}"
         )
 
-    # 2. Vérifier le nombre d'indicateurs
+
+    # --------------------------------------------------
+    # Indicators
+    # --------------------------------------------------
+
     expected_indicators = 5
-    actual_indicators = dataframe["indicator"].nunique()
+
+    actual_indicators = (
+        dataframe["indicator_code"].nunique()
+    )
 
     if actual_indicators != expected_indicators:
+
         errors.append(
-            f"Expected {expected_indicators} indicators, found {actual_indicators}"
+            f"Expected {expected_indicators} indicators, "
+            f"found {actual_indicators}"
         )
 
-    # 3. Vérifier les valeurs manquantes
-    missing_values = dataframe.isnull().sum().sum()
+
+    # --------------------------------------------------
+    # Required columns
+    # --------------------------------------------------
+
+    required_columns = {
+        "country",
+        "country_code",
+        "indicator",
+        "indicator_code",
+        "year",
+        "value"
+    }
+
+    missing_columns = (
+        required_columns
+        - set(dataframe.columns)
+    )
+
+    if missing_columns:
+
+        errors.append(
+            f"Missing columns: {missing_columns}"
+        )
+
+
+    # --------------------------------------------------
+    # Missing values
+    # --------------------------------------------------
+
+    missing_values = (
+        dataframe[
+            [
+                "country",
+                "country_code",
+                "indicator",
+                "indicator_code",
+                "year"
+            ]
+        ]
+        .isnull()
+        .sum()
+        .sum()
+    )
 
     if missing_values > 0:
+
         errors.append(
-            f"Found {missing_values} missing values"
+            f"Found {missing_values} missing "
+            "values in required fields"
         )
 
-    # 4. Vérifier les doublons
+
+    # --------------------------------------------------
+    # Duplicates
+    # --------------------------------------------------
+
     duplicates = dataframe.duplicated(
-        subset=["country_code", "indicator_code", "year"]
+        subset=[
+            "country_code",
+            "indicator_code",
+            "year"
+        ]
     ).sum()
 
     if duplicates > 0:
+
         errors.append(
             f"Found {duplicates} duplicate rows"
         )
 
-    # 5. Vérifier les années
+
+    # --------------------------------------------------
+    # Years
+    # --------------------------------------------------
+
     invalid_years = dataframe[
         (dataframe["year"] < 2000)
-        | (dataframe["year"] > 2025)
+        |
+        (dataframe["year"] > 2025)
     ]
 
-    if len(invalid_years) > 0:
+    if not invalid_years.empty:
+
         errors.append(
             f"Found {len(invalid_years)} invalid years"
         )
 
+
     return errors
 
 
-errors = validate_data(df)
+def validate_file():
+
+    dataframe = pd.read_csv(
+        DATA_FILE
+    )
+
+    errors = validate_data(
+        dataframe
+    )
+
+    return errors
 
 
-print("\n-----------------------------")
-print("DATA QUALITY CHECK")
-print("-----------------------------")
+if __name__ == "__main__":
 
-if len(errors) == 0:
-    print("PASS - All quality checks passed")
+    errors = validate_file()
 
-else:
-    print("FAIL")
+    print("\n-----------------------------")
+    print("DATA QUALITY CHECK")
+    print("-----------------------------")
 
-    for error in errors:
-        print(f"- {error}")
+    if not errors:
+
+        print(
+            "PASS - All quality checks passed"
+        )
+
+    else:
+
+        print("FAIL")
+
+        for error in errors:
+            print(f"- {error}")

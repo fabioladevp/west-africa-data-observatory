@@ -1,6 +1,6 @@
 import pandas as pd
 
-from database import engine
+from src.load.database import engine
 
 
 query = """

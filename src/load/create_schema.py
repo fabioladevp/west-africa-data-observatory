@@ -1,6 +1,6 @@
 from sqlalchemy import text
 
-from database import engine
+from src.load.database import engine
 
 
 def create_schema():
